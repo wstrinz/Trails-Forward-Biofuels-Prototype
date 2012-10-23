@@ -171,6 +171,13 @@ to setup
   if verbose [
     print weather-table
   ]
+  
+  if not file-exists? "logs" [
+    user-message "Warning: no logs folder exists. either create one and restart the model or click OK to continue without logging"
+    set log-players false
+    set log-world false
+    set log-view false
+  ]
 
   if hubnet [
     hubnet-set-client-interface "COMPUTER" []
@@ -437,7 +444,7 @@ to listen-clients
          
         ifelse ticks mod 365 > 49 and ticks mod 365 < 100 [
           if hubnet-message-tag = "Plant Corn" [
-            log-player-action hubnet-message-tag hubnet-message hubnet-message-source
+            ;log-player-action hubnet-message-tag hubnet-message hubnet-message-source
             ask controllers with [hubnet-message-source = user-id][
               plant-corn
             ]
