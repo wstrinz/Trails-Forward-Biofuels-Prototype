@@ -1123,6 +1123,11 @@ to farmers-sell-for-spot
         set switchgrass-sold-spot switchgrass-sold-spot + 1
     ]
   ]
+  if any? farmers with [switchgrass-sold < switchgrass-grown] [
+    ask farmers with [switchgrass-sold < switchgrass-grown] [
+      ;print (word "sell for spot has leftover grass; grown " switchgrass-grown " sold " switchgrass-sold " spot " switchgrass-sold-spot)
+    ]
+  ]
   ask farmers [
     set yearly-earnings yearly-earnings + (corn-sold-spot * (corn-subsidy + corn-spot-price)) + (switchgrass-sold-spot * (grass-subsidy + switchgrass-spot-price)
       + switchgrass-spot-price * corn-stover)
@@ -1461,7 +1466,9 @@ end
 to farmers-sell-excess-grass
   set switchgrass-bought-secondary 0
   ask farmers [
+    set switchgrass-sold-secondary 0
     if (switchgrass-grown > (switchgrass-sold)) [
+      ;print (word "sell for spot has leftover grass(xs); grown " switchgrass-grown " sold " switchgrass-sold " spot " switchgrass-sold-spot)
       set switchgrass-sold-secondary switchgrass-grown - switchgrass-sold
       set switchgrass-sold switchgrass-sold + switchgrass-sold-secondary
       set switchgrass-bought-secondary switchgrass-bought-secondary + switchgrass-sold-secondary
@@ -2167,34 +2174,61 @@ end
 
 to log-player-action [tag action player]
   file-open "logs/log.txt"
-  ifelse (tag = "Finished Choosing Contracts") [
-    let farme [agent] of one-of controllers with [user-id = player]
-    file-print (word ticks ": " player " - " tag "(corn: " [accepted-corn-contract] of farme ", switchgrass: " [accepted-switchgrass-contract] of farme  
-      " offered: " corn-contract " corn " switchgrass-contract " switchgrass , price: " corn-futures-price " corn " switchgrass-futures-price " switchgrass "  ")")
+  let contro one-of controllers with [user-id = player]
+  ifelse (tag = "Mouse Up" or contro = nobody or [agent] of contro = nobody)[
+   ;redundant log or dont need to 
   ]
   [
-    ifelse (tag = "View") [
-      let pat patch (item 0 action) (item 1 action)
-      file-print (word ticks ": " player " - " tag "(" pat ", corn: " [corn] of pat ", grass: " [switchgrass] of pat ")")
-    ]
-    [
-      ifelse (tag = "Finished Planting") [
-        let farme [agent] of one-of controllers with [user-id = player]
-        file-print (word ticks ": " player " - " tag "( Planted corn: " (count ([land] of farme) with [corn >= 1] / field-size ^ 2)
-          " switchgrass: " (count ([land] of farme) with [switchgrass >= 1]  / field-size ^ 2)
-          " Contracts corn: " [accepted-corn-contract] of farme ", switchgrass: " [accepted-switchgrass-contract] of farme  
-      " offered: " corn-contract " corn " switchgrass-contract " switchgrass )")
-      ]
-      [
-        ifelse (tag = "Mouse Up") [
-          ;already logged with View
-        ]
-        [
-          file-print (word ticks ": " player " - " tag "(" action")")
-        ]
-      ]
-    ]
+
+   let farme [agent] of contro
+   let clickstr "none,none,none"
+   let plantstr "none,none"
+   if(tag = "View")[
+     let pat patch (item 0 action) (item 1 action)
+     set clickstr (word pat "," [corn] of pat "," [switchgrass] of pat)
+   ]
+   if(tag = "Finished Planting") [
+     ;decided to include this always, but leaving conditional as a placeholder in case of bugs
+   ]
+   set plantstr (word (count ([land] of farme) with [corn >= 1] / field-size ^ 2) "," (count ([land] of farme) with [switchgrass >= 1]  / field-size ^ 2))
+   let pathere [patch-here] of farme
+   let locstr (word pathere "," [land-type] of pathere "," [corn] of pathere "," [switchgrass] of pathere "," [soil-health] of pathere)
+   ;time,player,message tag, message,accepted corn contract?,accepted switchgrass contract?,corn-contract amt,grass contract amt, corn price(futures),corn price(spot). grass price(futures), grass price(spot), clicked patch, corn at clicked patch
+   ;switchgrass of clicked patch, corn planted (fields), switchgrass planted (fields),selected info view, earnings, corn grown, corn sold (overall), corn sold (spot), grass grown, grass sold (all), grass sold (spot)
+   ;sustainability score, sustainability rank
+   file-print (word ticks "," player "," tag "," action "," [accepted-corn-contract] of farme "," [accepted-switchgrass-contract] of farme  
+      "," corn-contract "," switchgrass-contract "," corn-futures-price "," corn-spot-price "," switchgrass-futures-price "," switchgrass-spot-price "," clickstr "," plantstr ","[info-view] of contro ","[earnings] of farme ","
+       [corn-grown] of farme "," [corn-sold] of farme "," [corn-sold-spot] of farme "," [switchgrass-grown] of farme "," [switchgrass-sold] of farme "," [switchgrass-sold-spot] of farme "," 
+       [score] of contro "," [rank] of contro "," locstr) 
   ]
+;  ifelse (tag = "Finished Choosing Contracts") [
+;    let farme [agent] of one-of controllers with [user-id = player]
+;    file-print (word ticks ": " player " - " tag "(corn: " [accepted-corn-contract] of farme ", switchgrass: " [accepted-switchgrass-contract] of farme  
+;      " offered: " corn-contract " corn " switchgrass-contract " switchgrass , price: " corn-futures-price " corn " switchgrass-futures-price " switchgrass "  ")")
+;  ]
+;  [
+;    ifelse (tag = "View") [
+;      let pat patch (item 0 action) (item 1 action)
+;      file-print (word ticks ": " player " - " tag "(" pat ", corn: " [corn] of pat ", grass: " [switchgrass] of pat ")")
+;    ]
+;    [
+;      ifelse (tag = "Finished Planting") [
+;        let farme [agent] of one-of controllers with [user-id = player]
+;        file-print (word ticks ": " player " - " tag "( Planted corn: " (count ([land] of farme) with [corn >= 1] / field-size ^ 2)
+;          " switchgrass: " (count ([land] of farme) with [switchgrass >= 1]  / field-size ^ 2)
+;          " Contracts corn: " [accepted-corn-contract] of farme ", switchgrass: " [accepted-switchgrass-contract] of farme  
+;      " offered: " corn-contract " corn " switchgrass-contract " switchgrass )")
+;      ]
+;      [
+;        ifelse (tag = "Mouse Up") [
+;          ;already logged with View
+;        ]
+;        [
+;          file-print (word ticks ": " player " - " tag "(" action")")
+;        ]
+;      ]
+;    ]
+;  ]
   
   file-close
 end
@@ -2736,7 +2770,7 @@ fields-per-farmer
 fields-per-farmer
 01
 20
-3
+4
 1
 1
 NIL
@@ -3160,7 +3194,7 @@ SWITCH
 732
 contracts
 contracts
-1
+0
 1
 -1000
 
