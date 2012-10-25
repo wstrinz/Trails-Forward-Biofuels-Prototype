@@ -321,7 +321,7 @@ to go
       if wait-tick [set is-waiting true]
       ]
     
-    update-plot
+    ;update-plot
     if(hubnet)[
       update-clients
     ]
@@ -350,8 +350,9 @@ end
 
 to tick-and-do-stuff
   
-  
+ update-plot  
   tick
+
 end
 
 ;;
@@ -363,6 +364,9 @@ to listen-clients
     hubnet-fetch-message
     ifelse hubnet-enter-message?
     [ 
+      if(is-started)[
+        hubnet-kick-client hubnet-message-source
+      ]
       ifelse (not any? controllers with [user-id = hubnet-message-source])[
         add-player 
       ]
