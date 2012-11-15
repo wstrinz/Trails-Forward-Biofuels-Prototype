@@ -423,7 +423,7 @@ to listen-clients
              change-corn-contract 
            ]
            [
-             hubnet-send hubnet-message-source "Accept Corn Contract" false
+             ;hubnet-send hubnet-message-source "Accept Corn Contract" false
            ]
           ]
           if hubnet-message-tag = "Accept Switchgrass Contract"
@@ -432,7 +432,7 @@ to listen-clients
               change-switchgrass-contract 
             ]
             [
-              hubnet-send hubnet-message-source "Accept Switchgrass Contract" false
+              ;hubnet-send hubnet-message-source "Accept Switchgrass Contract" false
             ]
           ]
           if hubnet-message-tag = "Finished Choosing Contracts" [
