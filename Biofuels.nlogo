@@ -212,7 +212,9 @@ to start
      set earnings 50000
     ]
   ]
+  
   recompute-field-colors
+  setup-earnings-plot
 end
 
 to reset-world
@@ -377,7 +379,7 @@ to listen-clients
     [
       ifelse hubnet-exit-message?
       [
-        ;show word "source " hubnet-message-source
+        show word "source " hubnet-message-source
        ; ask controllers with [user-id = hubnet-message-source] [ die ]
         
         ;set expected-readies expected-readies - 1
@@ -1327,32 +1329,40 @@ to update-plot
   plotxy (year - 1) corn-futures-price + corn-subsidy
   
   set-current-plot "farmer earnings"
-  set-current-plot-pen "f1"
-  plotxy (year - 1) [earnings] of item 0 farmer-list
-  if(count controllers with [role = "farmer"] > 1)[
-    set-current-plot-pen "f2"
-    plotxy (year - 1) [earnings] of item 1 farmer-list
-    
-    if(count controllers with [role = "farmer"] > 2)[
-      set-current-plot-pen "f3"
-      plotxy (year - 1) [earnings] of item 2 farmer-list
-      
-      if(count controllers with [role = "farmer"] > 3)[
-        set-current-plot-pen "f4"
-        plotxy (year - 1) [earnings] of item 3 farmer-list
-        
-        if(count controllers with [role = "farmer"] > 4)[
-          set-current-plot-pen "f5"
-          plotxy (year - 1) [earnings] of item 4 farmer-list
-          
-          if(count controllers with [role = "farmer"] > 5)[
-            set-current-plot-pen "f6"
-            plotxy (year - 1) [earnings] of item 5 farmer-list
-          ]
-        ]
-      ]
+  foreach sort controllers [
+    ask ? [
+    if(is-human)[
+      set-current-plot-pen user-id
+      plotxy (year - 1) [earnings] of agent
+    ]
     ]
   ]
+;  set-current-plot-pen "f1"
+;  plotxy (year - 1) [earnings] of item 0 farmer-list
+;  if(count controllers with [role = "farmer"] > 1)[
+;    set-current-plot-pen "f2"
+;    plotxy (year - 1) [earnings] of item 1 farmer-list
+;    
+;    if(count controllers with [role = "farmer"] > 2)[
+;      set-current-plot-pen "f3"
+;      plotxy (year - 1) [earnings] of item 2 farmer-list
+;      
+;      if(count controllers with [role = "farmer"] > 3)[
+;        set-current-plot-pen "f4"
+;        plotxy (year - 1) [earnings] of item 3 farmer-list
+;        
+;        if(count controllers with [role = "farmer"] > 4)[
+;          set-current-plot-pen "f5"
+;          plotxy (year - 1) [earnings] of item 4 farmer-list
+;          
+;          if(count controllers with [role = "farmer"] > 5)[
+;            set-current-plot-pen "f6"
+;            plotxy (year - 1) [earnings] of item 5 farmer-list
+;          ]
+;        ]
+;      ]
+;    ]
+;  ]
   ;set-current-plot "Emissions"
   ;plotxy (year - 1) total-emissions
 
@@ -2179,6 +2189,19 @@ to plot-line [x1 x2 y1 y2]
   plotxy x2 y2
 end
 
+to setup-earnings-plot
+  set-current-plot "farmer earnings"
+  foreach n-values count farmers [?] [
+    if([is-human] of owner-of farmer ? = true)[
+      create-temporary-plot-pen [user-id] of owner-of farmer ?
+      set-plot-pen-color [color] of farmer ?
+    ]
+  ]
+  
+  
+
+end
+
 to viewview
   
 end
@@ -2580,12 +2603,6 @@ true
 true
 "" ""
 PENS
-"f1" 1.0 0 -16777216 true "" ""
-"f2" 1.0 0 -11221820 true "" ""
-"f3" 1.0 0 -5825686 true "" ""
-"f4" 1.0 0 -7500403 true "" ""
-"f5" 1.0 0 -10899396 true "" ""
-"f6" 1.0 0 -2674135 true "" ""
 
 SLIDER
 194
