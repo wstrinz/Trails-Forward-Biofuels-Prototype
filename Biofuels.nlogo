@@ -5,6 +5,7 @@ globals[
   clients-know-world-hidden
   corn-input switchgrass-input
   debug-mode
+  hide-world
   s-weights
   field-list
   role-list
@@ -116,6 +117,7 @@ to setup
   reset-ticks
   
   set debug-mode 0
+  set hide-world false
   set clients-know-world-hidden false
   set max-switchgrass-yield 1.5
   set switchgrass-growth-constant 1.1
@@ -1416,6 +1418,28 @@ to recompute-field-colors
   
 end
 
+to show-hide-world
+  ifelse(hide-world)[
+    ask controllers with [is-human] [
+      hubnet-clear-override user-id ([land] of agent) "pcolor"
+    ]
+    set hide-world false
+  ]
+  [
+;    ask controllers with [is-human] [
+;      let uid user-id
+;      ask agent [
+;        hubnet-send-override uid land "pcolor" [my-color]
+;         ;ask land [
+;        ;hubnet-send-override uid self "pcolor" [my-color]     
+;      ];]
+;      
+;    ]
+    set hide-world true
+  ]
+  recolor-background
+end
+
 ;;
 ;;Redraw the farm map
 ;;
@@ -1532,13 +1556,12 @@ to recolor-background
       ask (controllers with [is-human])[
         let uid user-id
         ask agent [
-          let not-my-land nobody
-          let landlist [self] of land
-          set not-my-land patches with [not member? self landlist]
-          hubnet-send-override uid not-my-land "pcolor" [grey]
-          ask land [
-            hubnet-send-override uid self "pcolor" [my-color]
-          ]
+          ;let not-my-land nobody
+          ;let landlist [self] of land
+          ;set not-my-land patches with [not member? self landlist]
+          ;hubnet-send-override uid not-my-land "pcolor" [grey]
+          hubnet-send-override uid land "pcolor" [my-color]
+          
         ]
       ;]
       ;set clients-know-world-hidden true
@@ -3389,13 +3412,13 @@ sort [user-id] of controllers with [not member? user-id ready-list]
 11
 
 BUTTON
-385
-560
-467
-593
+357
+604
+480
+637
 NIL
-viewview
-T
+show-hide-world
+NIL
 1
 T
 OBSERVER
@@ -3421,17 +3444,6 @@ NIL
 NIL
 NIL
 1
-
-SWITCH
-360
-646
-473
-679
-hide-world
-hide-world
-0
-1
--1000
 
 @#$#@#$#@
 ## WHAT IS IT?
