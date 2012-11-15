@@ -218,6 +218,17 @@ to start
       set earnings 50000
     ]
   ]
+  if(log-players)[
+    file-open "logs/log.txt"
+    file-print (word "time,player,message tag, message,accepted corn contract?,accepted switchgrass contract?,corn-contract amt,grass contract amt, corn price(futures),corn price(spot)," 
+      "grass price(futures), grass price(spot), clicked patch, corn at clicked patch switchgrass of clicked patch, corn planted (fields), switchgrass planted (fields),selected info view, ,"
+       "earnings, corn grown, corn sold (overall), corn sold (spot), grass grown, grass sold (all), grass sold (spot)sustainability score, sustainability rank")
+    file-close
+;    file-print (word ticks "," player "," tag "," action "," [accepted-corn-contract] of farme "," [accepted-switchgrass-contract] of farme  
+;      "," corn-contract "," switchgrass-contract "," corn-futures-price "," corn-spot-price "," switchgrass-futures-price "," switchgrass-spot-price "," clickstr "," plantstr ","[info-view] of contro ","[earnings] of farme ","
+;      [corn-grown] of farme "," [corn-sold] of farme "," [corn-sold-spot] of farme "," [switchgrass-grown] of farme "," [switchgrass-sold] of farme "," [switchgrass-sold-spot] of farme "," 
+;      [score] of contro "," [rank] of contro "," locstr)   
+  ]
   
   recompute-field-colors
   setup-earnings-plot
@@ -1523,7 +1534,7 @@ to recolor-background
     ]
     [
       ask patches [
-        set pcolor scale-color brown soil-health min-health max-health
+        set pcolor scale-color brown soil-health max-health min-health
       ]
     ]
     
@@ -1766,8 +1777,8 @@ to update-clients
     hubnet-send user-id "Cost of Corn (Ton)" round (cost-per-acre-corn / corn-tons-per-acre)
     hubnet-send user-id "Corn Tons per Acre (base)" corn-tons-per-acre
     hubnet-send user-id "Grass Tons per Acre (base)" switchgrass-tons-per-acre
-    hubnet-send user-id "Accept Corn Contract" [accepted-corn-contract] of agent
-    hubnet-send user-id "Accept Switchgrass Contract" [accepted-switchgrass-contract] of agent
+    ;hubnet-send user-id "Accept Corn Contract" [accepted-corn-contract] of agent
+    ;hubnet-send user-id "Accept Switchgrass Contract" [accepted-switchgrass-contract] of agent
     hubnet-send user-id "Initial Cost of Grass (Ton)" round (cost-per-acre-switchgrass / switchgrass-tons-per-acre)
     hubnet-send user-id "Offered Corn Contract Amount (Tons)" corn-contract
     hubnet-send user-id "Offered Grass Contract Amount (Tons)" switchgrass-contract
@@ -2714,7 +2725,7 @@ initial-farmers
 initial-farmers
 1
 50
-4
+8
 1
 1
 NIL
@@ -2844,7 +2855,7 @@ CHOOSER
 coloring
 coloring
 "land use" "soil health" "land ownership"
-0
+1
 
 PLOT
 489
