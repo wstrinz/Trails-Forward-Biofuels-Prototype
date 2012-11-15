@@ -2,7 +2,9 @@ extensions[table]
 
 globals[
   corn-energy switchgrass-energy corn-futures-price switchgrass-futures-price corn-spot-price switchgrass-spot-price corn-cons-price
+  clients-know-world-hidden
   corn-input switchgrass-input
+  debug-mode
   s-weights
   field-list
   role-list
@@ -73,7 +75,7 @@ globals[
   last-year-secondary
   corn-bought-contract
   switchgrass-bought-contract
-  corn-bought-secondary
+  corn-bought-secondary 
   field-color-vals
   variable-cost-switchgrass
   variable-cost-corn
@@ -81,7 +83,7 @@ globals[
   noisy-prices
   inequality-social-score
 ]
-patches-own[land-type switchgrass corn soil-health isOwned emissions fallowed last-corn last-switchgrass fertilizer last-corn-yield last-grass-yield]
+patches-own[land-type switchgrass corn soil-health isOwned emissions fallowed last-corn last-switchgrass fertilizer last-corn-yield last-grass-yield my-color]
 ;turtles-own[user-id role score rank agent score-components tri-score-components is-human]
 
 
@@ -92,7 +94,7 @@ breed [controllers controller]
 
 farmers-own[land earnings patches-owned plant-ratio fields-to-plant farmer-id destination current-field manage-individual corn-grown switchgrass-grown yearly-earnings 
   corn-sold switchgrass-sold corn-sold-spot switchgrass-sold-spot corn-sold-cons switchgrass-sold-secondary accepted-corn-contract accepted-switchgrass-contract contracted-corn contracted-switchgrass
-   production contract-sales spot-sales planted corn-short switchgrass-short corn-stover economy-string environment-string ranking-string] 
+  production contract-sales spot-sales planted corn-short switchgrass-short corn-stover economy-string environment-string ranking-string] 
 ;government-own[subsidy]
 
 controllers-own[user-id role score rank agent score-components tri-score-components is-human info-view behavior-pattern earnings-rank environment-rank social-rank]
@@ -113,6 +115,8 @@ to setup
   file-close
   reset-ticks
   
+  set debug-mode 0
+  set clients-know-world-hidden false
   set max-switchgrass-yield 1.5
   set switchgrass-growth-constant 1.1
   set farmer-color-list [black cyan magenta grey green red]
@@ -178,7 +182,7 @@ to setup
     set log-world false
     set log-view false
   ]
-
+  
   if hubnet [
     hubnet-set-client-interface "COMPUTER" []
     hubnet-reset
@@ -197,7 +201,7 @@ to start
   let extra-farmers initial-farmers - count controllers with [role = "farmer"]
   ;  print extra-farmers
   if(extra-farmers > 0)[
-   repeat extra-farmers [add-ai-player]
+    repeat extra-farmers [add-ai-player]
   ]
   if(hubnet)
   [
@@ -208,8 +212,8 @@ to start
       ]
     ]
     ask farmers [
-     set patches-owned land with [land-type = 1] 
-     set earnings 50000
+      set patches-owned land with [land-type = 1] 
+      set earnings 50000
     ]
   ]
   
@@ -242,11 +246,11 @@ end
 to go
   let thismod ticks mod 365
   listen-clients
-
+  
   if(is-started)[
     if(ticks > 0) [ais-think]
     move-farmers
-
+    
     if (ticks mod 365 = 0)[
       set year year + 1
       market-adjust
@@ -257,7 +261,7 @@ to go
       set-weather
       set next-event "Energy Producer Offers Contracts"
       if wait-tick [set is-waiting true]
-      ]
+    ]
     if (ticks mod 365 = 25)[
       offer-contracts
       ask controllers with [is-human = false] [
@@ -267,28 +271,28 @@ to go
       set next-event "Farmers Accept/Decline Contracts"
       if (wait-tick) [set is-waiting true]
       if (not contracts) [set is-waiting false]
-      ]
+    ]
     if (ticks mod 365 = 50)[
       accept-contracts
-
+      
       set next-event "Farmers Choose What to Plant"
       if wait-tick [set is-waiting true]
-      ]      
+    ]      
     if (ticks mod 365 = 100)[
       reset-info-strings
       farmers-choose-crops
       recompute-field-colors
       recolor-background
-
+      
       set next-event "Farmers Grow and Harvest Crops"
       if wait-tick [set is-waiting true]
-      ]
+    ]
     if (ticks mod 365 = 150)[
       harvest-crops
       recompute-field-colors
       set next-event "Farmers Sell Crops"
       if wait-tick [set is-waiting true]
-      ]     
+    ]     
     if (ticks mod 365 = 250) [
       environment-change
       farmers-sell-crops-complicated
@@ -297,21 +301,21 @@ to go
           print "didnt sell all corn"
         ]
         if switchgrass-grown > switchgrass-sold [
-         print "didnt sell all grass" 
+          print "didnt sell all grass" 
         ]
         
       ]
       recolor-background
       set next-event "Government Acts"
       if wait-tick [set is-waiting true]
-      ]
+    ]
     if (ticks mod 365 = 300) [
       econ-change
       compute-s-index
       ask controllers [
-         compute-individual-s-index
-         compute-individual-s-triangle
-       ]
+        compute-individual-s-index
+        compute-individual-s-triangle
+      ]
       rank-scores
       gov-intervene
       print-summary
@@ -321,7 +325,7 @@ to go
       set ready-list []
       set next-event "Futures Price Determined"
       if wait-tick [set is-waiting true]
-      ]
+    ]
     
     ;update-plot
     if(hubnet)[
@@ -352,9 +356,9 @@ end
 
 to tick-and-do-stuff
   
- update-plot  
+  update-plot  
   tick
-
+  
 end
 
 ;;
@@ -379,11 +383,13 @@ to listen-clients
     [
       ifelse hubnet-exit-message?
       [
-        show word "source " hubnet-message-source
-       ; ask controllers with [user-id = hubnet-message-source] [ die ]
+        if(debug-mode = 1) [
+          show word "source " hubnet-message-source
+        ]
+        ; ask controllers with [user-id = hubnet-message-source] [ die ]
         
         ;set expected-readies expected-readies - 1
-
+        
       ]
       [
         if log-players [
@@ -419,12 +425,12 @@ to listen-clients
         ifelse ticks mod 365 > 24 and ticks mod 365 < 50 [
           if hubnet-message-tag = "Accept Corn Contract"
           [
-           ifelse(contracts) [
-             change-corn-contract 
-           ]
-           [
-             ;hubnet-send hubnet-message-source "Accept Corn Contract" false
-           ]
+            ifelse(contracts) [
+              change-corn-contract 
+            ]
+            [
+              ;hubnet-send hubnet-message-source "Accept Corn Contract" false
+            ]
           ]
           if hubnet-message-tag = "Accept Switchgrass Contract"
           [
@@ -443,11 +449,11 @@ to listen-clients
         ]
         [
           if hubnet-message-tag = "Accept Corn Contract" or hubnet-message-tag = "Accept Switchgrass Contract" or hubnet-message-tag = "Finished Choosing Contracts" [
-             hubnet-send-message hubnet-message-source "This is not the time to be doing that!"
+            hubnet-send-message hubnet-message-source "This is not the time to be doing that!"
           ]
         ]
         
-         
+        
         ifelse ticks mod 365 > 49 and ticks mod 365 < 100 [
           if hubnet-message-tag = "Plant Corn" [
             ;log-player-action hubnet-message-tag hubnet-message hubnet-message-source
@@ -473,19 +479,19 @@ to listen-clients
               plant-switchgrass
             ]
           ]
-;          if hubnet-message-tag = "Plant All Switchgrass" [
-;            foreach field-list [
-;              ask controllers with [user-id = hubnet-message-source] [
-;                if (member? (one-of ?) [land] of agent) [
-;                  ask agent[
-;                    set current-field ?
-;                  ]
-;                  plant-switchgrass
-;                ]
-;              ]
-;              
-;            ]
-;          ]
+          ;          if hubnet-message-tag = "Plant All Switchgrass" [
+          ;            foreach field-list [
+          ;              ask controllers with [user-id = hubnet-message-source] [
+          ;                if (member? (one-of ?) [land] of agent) [
+          ;                  ask agent[
+          ;                    set current-field ?
+          ;                  ]
+          ;                  plant-switchgrass
+          ;                ]
+          ;              ]
+          ;              
+          ;            ]
+          ;          ]
           if hubnet-message-tag = "Leave Fallow" [
             leave-fallow
           ]
@@ -579,22 +585,22 @@ to add-player
       set score-components [0 0 0 0]
       set tri-score-components [0 0 0]
       set agent one-of farmers with [not any? controllers with [agent = myself]]
-     
+      
       let not-my-land nobody
       ask agent [
-       set fields-to-plant [ ]
-       set plant-ratio .5 
-       set destination nobody
-       set current-field nobody
-       set manage-individual true
+        set fields-to-plant [ ]
+        set plant-ratio .5 
+        set destination nobody
+        set current-field nobody
+        set manage-individual true
         set accepted-corn-contract false
-      set accepted-switchgrass-contract false
-       if (count farmers <= 6) [
-         set color item (length farmer-list) farmer-color-list
-       ]
-       move-to one-of land
-       let landlist [self] of land
-       set not-my-land patches with [not member? self landlist]
+        set accepted-switchgrass-contract false
+        if (count farmers <= 6) [
+          set color item (length farmer-list) farmer-color-list
+        ]
+        move-to one-of land
+        let landlist [self] of land
+        set not-my-land patches with [not member? self landlist]
       ]
       hubnet-send-follow user-id agent 20
       hubnet-send-override user-id not-my-land "pcolor" [grey]
@@ -608,7 +614,7 @@ to add-ai-player
   if (count controllers with [role = "farmer"] < initial-farmers) [
     set expected-readies expected-readies + 1
     create-controllers 1 [ 
-
+      
       
       set is-human false
       set label user-id
@@ -616,22 +622,22 @@ to add-ai-player
       set behavior-pattern "default"
       set score-components [0 0 0 0]
       set tri-score-components [0 0 0]
-     ; print tri-score-components
+      ; print tri-score-components
       set agent one-of farmers with [not any? controllers with [agent = myself]]
       set user-id (word "ai " agent)
       let not-my-land nobody
       ask agent [
-       set fields-to-plant [ ]
-       set plant-ratio .5 
-       set destination nobody
-       set current-field nobody
-       set manage-individual true
-       if (count farmers <= 6) [
-         ;set color item (length farmer-list) farmer-color-list
-       ]
-       move-to one-of land
-       let landlist [self] of land
-       set not-my-land patches with [not member? self landlist]
+        set fields-to-plant [ ]
+        set plant-ratio .5 
+        set destination nobody
+        set current-field nobody
+        set manage-individual true
+        if (count farmers <= 6) [
+          ;set color item (length farmer-list) farmer-color-list
+        ]
+        move-to one-of land
+        let landlist [self] of land
+        set not-my-land patches with [not member? self landlist]
       ]
       set farmer-list lput agent farmer-list
       ht
@@ -664,38 +670,38 @@ to log-yearlies
   if log-view [
     export-view (word "logs/" ticks ".png")
   ]
-
+  
   if log-world [
     export-world (word "logs/" ticks ".csv")
   ]
 end
 
 to plant-corn
-;  ask controllers with [user-id = hubnet-message-source] [
-    let uid user-id
-    let is-hu is-human
-    ask agent [
-      ifelse (current-field != nobody) [
-        ask current-field [
-          if is-hu[
-            hubnet-send-override hubnet-message-source self "plabel-color" [white]
-            hubnet-send-override hubnet-message-source self "plabel" ["C"]
-          ]
-          set emissions emissions-rate * corn-input
-          set corn 1
-          set switchgrass 0
-          set fallowed 0
-          set fertilizer 0
+  ;  ask controllers with [user-id = hubnet-message-source] [
+  let uid user-id
+  let is-hu is-human
+  ask agent [
+    ifelse (current-field != nobody) [
+      ask current-field [
+        if is-hu[
+          hubnet-send-override hubnet-message-source self "plabel-color" [white]
+          hubnet-send-override hubnet-message-source self "plabel" ["C"]
         ]
+        set emissions emissions-rate * corn-input
+        set corn 1
+        set switchgrass 0
+        set fallowed 0
+        set fertilizer 0
+      ]
+    ]
+    [
+      ifelse (([is-human] of controllers with [agent = myself]) = true)[
+        hubnet-send-message uid "You need to select a field to plant!"
       ]
       [
-        ifelse (([is-human] of controllers with [agent = myself]) = true)[
-        hubnet-send-message uid "You need to select a field to plant!"
-        ]
-        [
-          print "not there yet"
-        ]
-      ]]
+        print "not there yet"
+      ]
+    ]]
 end
 
 to plant-switchgrass
@@ -792,58 +798,58 @@ to ai-decide-contracts
       set accepted-switchgrass-contract false
     ]
   ]
-   set ready-list lput user-id ready-list
+  set ready-list lput user-id ready-list
 end
 
 to update-info-area 
-    hubnet-send-clear-output user-id
-    ifelse (info-view = "Economy") [
-      hubnet-send-message user-id Economy-info-string self
+  hubnet-send-clear-output user-id
+  ifelse (info-view = "Economy") [
+    hubnet-send-message user-id Economy-info-string self
+  ]
+  [
+    ifelse (info-view = "Environment" )[
+      hubnet-send-message user-id Environment-info-string self
     ]
     [
-      ifelse (info-view = "Environment" )[
-          hubnet-send-message user-id Environment-info-string self
+      ifelse (info-view = "Sustainability") [
+        hubnet-send-message user-id Sustainability-info-string self
       ]
       [
-       ifelse (info-view = "Sustainability") [
-         hubnet-send-message user-id Sustainability-info-string self
-       ]
-       [
-         ifelse (info-view = "Ranking") [
-           hubnet-send-message user-id Ranking-info-string self
-         ]
-         [
-           
-         ]]]]
-    
+        ifelse (info-view = "Ranking") [
+          hubnet-send-message user-id Ranking-info-string self
+        ]
+        [
+          
+        ]]]]
+  
 end
 
 to ai-reset-fields-to-plant
-;  ask controllers with [is-human = false][
-;    ask agent [
-;      
-;      ;set fields-to-plant 
-;    ]
-;  ]
+  ;  ask controllers with [is-human = false][
+  ;    ask agent [
+  ;      
+  ;      ;set fields-to-plant 
+  ;    ]
+  ;  ]
   
   ask one-of farmers [
     foreach n-values (length field-list) [?] [
-        ask farmers with [member? (one-of item ? ([field-list] of myself)) land][
-            set fields-to-plant lput (item ? field-list) fields-to-plant
-        ]
+      ask farmers with [member? (one-of item ? ([field-list] of myself)) land][
+        set fields-to-plant lput (item ? field-list) fields-to-plant
+      ]
     ]
   ]
   
-;  ask controllers with [is-human = false][
-;    ask agent [
-;      set fields-to-plant []
-;      foreach n-values (length field-list) [?] [
-;        if(member? (one-of item ? field-list) land) [
-;          set fields-to-plant lput (item ? field-list) fields-to-plant
-;        ]
-;      ]
-;    ]
-;  ]
+  ;  ask controllers with [is-human = false][
+  ;    ask agent [
+  ;      set fields-to-plant []
+  ;      foreach n-values (length field-list) [?] [
+  ;        if(member? (one-of item ? field-list) land) [
+  ;          set fields-to-plant lput (item ? field-list) fields-to-plant
+  ;        ]
+  ;      ]
+  ;    ]
+  ;  ]
 end
 
 to ais-think
@@ -878,9 +884,9 @@ to ais-think
                     [
                       
                     ]]
-                  ]
+                ]
               ]
-                
+              
               ;ask current-field [set pcolor blue]
               set fields-to-plant butfirst fields-to-plant
               ifelse (length fields-to-plant = 0) [
@@ -896,7 +902,7 @@ to ais-think
         ]
       ]
       if (is-done and not member? user-id ready-list) [
-         set ready-list lput user-id ready-list
+        set ready-list lput user-id ready-list
       ]
     ]
   ]
@@ -1027,7 +1033,7 @@ to harvest-crops
 end
 
 to farmers-sell-crops-complicated
-
+  
   farmers-sell-for-contract
   compute-spot-prices
   control-prices
@@ -1046,7 +1052,7 @@ to farmers-sell-for-contract
     set switchgrass-short 0
   ]
   ask farmers with [accepted-corn-contract = true] [
-   ; set corn-sold 0
+    ; set corn-sold 0
     set corn-short 0
     set corn-bought corn-bought + corn-grown
     set corn-sold corn-contract
@@ -1055,7 +1061,7 @@ to farmers-sell-for-contract
     ]
   ]
   ask farmers with [accepted-switchgrass-contract = true] [ 
-   ; set switchgrass-sold 0
+    ; set switchgrass-sold 0
     set switchgrass-short 0
     set switchgrass-bought switchgrass-bought + switchgrass-grown
     set switchgrass-sold switchgrass-contract
@@ -1119,7 +1125,7 @@ to farmers-sell-for-spot
     set switchgrass-sold-spot 0
     set corn-stover (corn-grown / corn-tons-per-acre) * 2
     
-    ]
+  ]
   while [corn-bought < corn-demand and any? farmers with [corn-sold < corn-grown]] [
     ask one-of farmers with [corn-sold < corn-grown] [
       set corn-sold corn-sold + 1
@@ -1130,10 +1136,10 @@ to farmers-sell-for-spot
   ]
   while [switchgrass-bought < switchgrass-demand and any? farmers with [switchgrass-sold < switchgrass-grown]] [
     ask one-of farmers with [ switchgrass-sold < switchgrass-grown][
-        set switchgrass-sold switchgrass-sold + 1
-        set switchgrass-bought switchgrass-bought + 1
-        set switchgrass-bought-spot switchgrass-bought-spot + 1
-        set switchgrass-sold-spot switchgrass-sold-spot + 1
+      set switchgrass-sold switchgrass-sold + 1
+      set switchgrass-bought switchgrass-bought + 1
+      set switchgrass-bought-spot switchgrass-bought-spot + 1
+      set switchgrass-sold-spot switchgrass-sold-spot + 1
     ]
   ]
   if any? farmers with [switchgrass-sold < switchgrass-grown] [
@@ -1144,15 +1150,15 @@ to farmers-sell-for-spot
   ask farmers [
     set yearly-earnings yearly-earnings + (corn-sold-spot * (corn-subsidy + corn-spot-price)) + (switchgrass-sold-spot * (grass-subsidy + switchgrass-spot-price)
       + switchgrass-spot-price * corn-stover)
-
+    
     if verbose [
-    show (word "Sold " corn-sold-spot " corn for " corn-spot-price " (Spot)")
-    show (word "Sold " switchgrass-sold-spot " switchgrass for " switchgrass-spot-price " (Spot)")
-    show (word "Sold " corn-stover " corn stover for " switchgrass-spot-price " (Spot)")
+      show (word "Sold " corn-sold-spot " corn for " corn-spot-price " (Spot)")
+      show (word "Sold " switchgrass-sold-spot " switchgrass for " switchgrass-spot-price " (Spot)")
+      show (word "Sold " corn-stover " corn stover for " switchgrass-spot-price " (Spot)")
     ]
     set economy-string (word economy-string "\nSold " corn-sold-spot " corn for " corn-spot-price " (Spot)"
-    "\nSold " switchgrass-sold-spot " switchgrass for " switchgrass-spot-price " (Spot)"
-    "\nSold " corn-stover " corn stover for " switchgrass-spot-price " (Spot)")
+      "\nSold " switchgrass-sold-spot " switchgrass for " switchgrass-spot-price " (Spot)"
+      "\nSold " corn-stover " corn stover for " switchgrass-spot-price " (Spot)")
     
   ]
   let paid-to-farmers (corn-bought-spot * corn-spot-price) + (switchgrass-bought-spot * switchgrass-spot-price)
@@ -1167,35 +1173,35 @@ to farmers-sell-excess-corn
   set corn-bought-secondary 0
   ask farmers [set corn-sold-cons 0]
   ask farmers with [corn-sold < corn-grown] [
-      let extra-corn corn-grown - corn-sold
-      set corn-bought corn-bought + extra-corn
-      set corn-sold-cons corn-sold-cons + extra-corn
-      set corn-bought-secondary corn-bought-secondary + extra-corn
-      set corn-sold corn-grown 
+    let extra-corn corn-grown - corn-sold
+    set corn-bought corn-bought + extra-corn
+    set corn-sold-cons corn-sold-cons + extra-corn
+    set corn-bought-secondary corn-bought-secondary + extra-corn
+    set corn-sold corn-grown 
   ]
   ask farmers [
     let new-switchgrass-amt (count land with [(land-type = 1) and (switchgrass > 0) and (last-switchgrass = 0)])
     let old-switchgrass-amt (count land with [(land-type = 1) and (switchgrass > 0) and (last-switchgrass != 0)])
     set yearly-earnings yearly-earnings + (corn-sold-cons * (corn-subsidy + corn-cons-price))
-   if verbose [
-    show (word "total revenue this year: " yearly-earnings)
-    ;calculate from tons
-    show (word "planted " count land with [land-type = 1 and corn = 1] " acres corn at " cost-per-acre-corn ", " new-switchgrass-amt " new switchgrass for " cost-per-acre-switchgrass " and " old-switchgrass-amt " old switchgrass for " switchgrass-harvest-cost " totaling " (-(count land with [land-type = 1 and corn = 1] * cost-per-acre-corn) - (new-switchgrass-amt * cost-per-acre-switchgrass)  - (old-switchgrass-amt * switchgrass-harvest-cost) - (count land with [fertilizer = 1] * cost-per-acre-fertilizer)) " incl fertilizer ")
-    show (word "aka " (count land with [land-type = 1 and corn = 1] * corn-tons-per-acre) " tons corn at " (cost-per-acre-corn / corn-tons-per-acre) " and " (new-switchgrass-amt * switchgrass-tons-per-acre) " switchgrass for " (cost-per-acre-switchgrass / switchgrass-tons-per-acre) " totaling " (-(count land with [land-type = 1 and corn = 1] * cost-per-acre-corn) - (new-switchgrass-amt * cost-per-acre-switchgrass) - (count land with [fertilizer = 1] * cost-per-acre-fertilizer)) " incl fertilizer ")
-   ]
-   
-   set economy-string (word economy-string "\ntotal revenue this year: " yearly-earnings
-     "\nplanted " count land with [land-type = 1 and corn = 1] " acres corn at " cost-per-acre-corn ", " new-switchgrass-amt " new switchgrass for " cost-per-acre-switchgrass " and " old-switchgrass-amt " old switchgrass for " switchgrass-harvest-cost " totaling " (-(count land with [land-type = 1 and corn = 1] * cost-per-acre-corn) - (new-switchgrass-amt * cost-per-acre-switchgrass)  - (old-switchgrass-amt * switchgrass-harvest-cost) - (count land with [fertilizer = 1] * cost-per-acre-fertilizer)) " incl fertilizer "
-    "\naka " (count land with [land-type = 1 and corn = 1] * corn-tons-per-acre) " tons corn at " (cost-per-acre-corn / corn-tons-per-acre) " and " (new-switchgrass-amt * switchgrass-tons-per-acre) " switchgrass for " (cost-per-acre-switchgrass / switchgrass-tons-per-acre) " totaling " (-(count land with [land-type = 1 and corn = 1] * cost-per-acre-corn) - (new-switchgrass-amt * cost-per-acre-switchgrass) - (count land with [fertilizer = 1] * cost-per-acre-fertilizer)) " incl fertilizer ")
-   
+    if verbose [
+      show (word "total revenue this year: " yearly-earnings)
+      ;calculate from tons
+      show (word "planted " count land with [land-type = 1 and corn = 1] " acres corn at " cost-per-acre-corn ", " new-switchgrass-amt " new switchgrass for " cost-per-acre-switchgrass " and " old-switchgrass-amt " old switchgrass for " switchgrass-harvest-cost " totaling " (-(count land with [land-type = 1 and corn = 1] * cost-per-acre-corn) - (new-switchgrass-amt * cost-per-acre-switchgrass)  - (old-switchgrass-amt * switchgrass-harvest-cost) - (count land with [fertilizer = 1] * cost-per-acre-fertilizer)) " incl fertilizer ")
+      show (word "aka " (count land with [land-type = 1 and corn = 1] * corn-tons-per-acre) " tons corn at " (cost-per-acre-corn / corn-tons-per-acre) " and " (new-switchgrass-amt * switchgrass-tons-per-acre) " switchgrass for " (cost-per-acre-switchgrass / switchgrass-tons-per-acre) " totaling " (-(count land with [land-type = 1 and corn = 1] * cost-per-acre-corn) - (new-switchgrass-amt * cost-per-acre-switchgrass) - (count land with [fertilizer = 1] * cost-per-acre-fertilizer)) " incl fertilizer ")
+    ]
+    
+    set economy-string (word economy-string "\ntotal revenue this year: " yearly-earnings
+      "\nplanted " count land with [land-type = 1 and corn = 1] " acres corn at " cost-per-acre-corn ", " new-switchgrass-amt " new switchgrass for " cost-per-acre-switchgrass " and " old-switchgrass-amt " old switchgrass for " switchgrass-harvest-cost " totaling " (-(count land with [land-type = 1 and corn = 1] * cost-per-acre-corn) - (new-switchgrass-amt * cost-per-acre-switchgrass)  - (old-switchgrass-amt * switchgrass-harvest-cost) - (count land with [fertilizer = 1] * cost-per-acre-fertilizer)) " incl fertilizer "
+      "\naka " (count land with [land-type = 1 and corn = 1] * corn-tons-per-acre) " tons corn at " (cost-per-acre-corn / corn-tons-per-acre) " and " (new-switchgrass-amt * switchgrass-tons-per-acre) " switchgrass for " (cost-per-acre-switchgrass / switchgrass-tons-per-acre) " totaling " (-(count land with [land-type = 1 and corn = 1] * cost-per-acre-corn) - (new-switchgrass-amt * cost-per-acre-switchgrass) - (count land with [fertilizer = 1] * cost-per-acre-fertilizer)) " incl fertilizer ")
+    
     set yearly-earnings yearly-earnings - (count land with [land-type = 1 and corn = 1] * cost-per-acre-corn) - (new-switchgrass-amt * cost-per-acre-switchgrass) - (old-switchgrass-amt * switchgrass-harvest-cost)
-        - (count land with [fertilizer = 1] * cost-per-acre-fertilizer)
+    - (count land with [fertilizer = 1] * cost-per-acre-fertilizer)
     if verbose [
       show (word "also paid for " corn-short " corn at " (corn-spot-price - corn-futures-price) " and " switchgrass-short " grass at " (switchgrass-spot-price - switchgrass-futures-price))
       show (word "Sold " corn-sold-cons " corn for consumption")
     ]
     set economy-string (word economy-string "\nalso paid for " corn-short " corn at " (corn-spot-price - corn-futures-price) " and " switchgrass-short " grass at " (switchgrass-spot-price - switchgrass-futures-price)
-    "\nSold " corn-sold-cons " corn for consumption and " switchgrass-sold-secondary " switchgrass on the secondary market")
+      "\nSold " corn-sold-cons " corn for consumption and " switchgrass-sold-secondary " switchgrass on the secondary market")
     set yearly-earnings round (yearly-earnings - (corn-short * (corn-spot-price - corn-futures-price)) - (switchgrass-short * (switchgrass-spot-price - switchgrass-futures-price)))
     if verbose [
       show (word "profit this year: " yearly-earnings)
@@ -1208,7 +1214,7 @@ to farmers-sell-excess-corn
     set last-year-contract (word corn-bought-contract " Tons of Corn and " switchgrass-bought-contract " Tons of Switchgrass sold for contract")
     set last-year-spot (word corn-bought-spot " Tons of Corn and " switchgrass-bought-spot " Tons of Switchgrass sold for spot")
     set last-year-secondary (word corn-bought-secondary " Tons of Corn and " switchgrass-bought-secondary " Tons of Switchgrass sold on Secondary market ")
-
+    
   ]
 end
 
@@ -1221,6 +1227,12 @@ to environment-change
     if switchgrass >= 1 [set soil-health (soil-health + 1)]
     if fallowed = 1 [set soil-health (soil-health + 2)]
     if fertilizer = 1 [set soil-health (soil-health - 1)]
+    if(soil-health > 10) [
+      set soil-health 10
+    ]
+    if(soil-health < -10)[
+      set soil-health -10
+    ]
   ]
   diffuse soil-health .75
   set total-emissions sum [emissions] of patches
@@ -1232,10 +1244,10 @@ end
 to econ-change
   set energy-price energy-price + (random 4) - 2 ;rough price per gJ/ethanol
   if energy-price > 60 [
-   set energy-price 60 
+    set energy-price 60 
   ]
   if energy-price < 30 [
-   set energy-price 30 
+    set energy-price 30 
   ]  
   set corn-food-price (corn-food-price + ((random-float 1) - .5))
   if (corn-food-price > 6.25)[
@@ -1252,22 +1264,22 @@ end
 to gov-intervene ; set subsidies to make corn/switchgrass amounts equal
   control-prices
   
-;  if auto-government[
-;    let total-corn sum [corn] of patches
-;    let total-switchgrass sum [switchgrass] of patches
-;    if total-corn > total-switchgrass [
-;      ; print switchgrass-subsidy
-;      set switchgrass-subsidy (switchgrass-subsidy + ((total-corn - total-switchgrass)) / 100)
-;    ]
-;    if total-switchgrass > total-corn [
-;      ;print corn-subsidy
-;      set corn-subsidy ((corn-subsidy + (total-switchgrass - total-corn)) / 100)
-;    ]
-;    set corn-subsidy (corn-subsidy + random(20) - 10)
-;    if corn-subsidy < 0 [set corn-subsidy 0]
-;    set switchgrass-subsidy (switchgrass-subsidy + random(20) - 10)
-;    if switchgrass-subsidy < 0 [set switchgrass-subsidy 0]
-;  ]
+  ;  if auto-government[
+  ;    let total-corn sum [corn] of patches
+  ;    let total-switchgrass sum [switchgrass] of patches
+  ;    if total-corn > total-switchgrass [
+  ;      ; print switchgrass-subsidy
+  ;      set switchgrass-subsidy (switchgrass-subsidy + ((total-corn - total-switchgrass)) / 100)
+  ;    ]
+  ;    if total-switchgrass > total-corn [
+  ;      ;print corn-subsidy
+  ;      set corn-subsidy ((corn-subsidy + (total-switchgrass - total-corn)) / 100)
+  ;    ]
+  ;    set corn-subsidy (corn-subsidy + random(20) - 10)
+  ;    if corn-subsidy < 0 [set corn-subsidy 0]
+  ;    set switchgrass-subsidy (switchgrass-subsidy + random(20) - 10)
+  ;    if switchgrass-subsidy < 0 [set switchgrass-subsidy 0]
+  ;  ]
 end
 
 to change-perspective
@@ -1331,46 +1343,46 @@ to update-plot
   set-current-plot "farmer earnings"
   foreach sort controllers [
     ask ? [
-    if(is-human)[
-      set-current-plot-pen user-id
-      plotxy (year - 1) [earnings] of agent
-    ]
+      if(is-human)[
+        set-current-plot-pen user-id
+        plotxy (year - 1) [earnings] of agent
+      ]
     ]
   ]
-;  set-current-plot-pen "f1"
-;  plotxy (year - 1) [earnings] of item 0 farmer-list
-;  if(count controllers with [role = "farmer"] > 1)[
-;    set-current-plot-pen "f2"
-;    plotxy (year - 1) [earnings] of item 1 farmer-list
-;    
-;    if(count controllers with [role = "farmer"] > 2)[
-;      set-current-plot-pen "f3"
-;      plotxy (year - 1) [earnings] of item 2 farmer-list
-;      
-;      if(count controllers with [role = "farmer"] > 3)[
-;        set-current-plot-pen "f4"
-;        plotxy (year - 1) [earnings] of item 3 farmer-list
-;        
-;        if(count controllers with [role = "farmer"] > 4)[
-;          set-current-plot-pen "f5"
-;          plotxy (year - 1) [earnings] of item 4 farmer-list
-;          
-;          if(count controllers with [role = "farmer"] > 5)[
-;            set-current-plot-pen "f6"
-;            plotxy (year - 1) [earnings] of item 5 farmer-list
-;          ]
-;        ]
-;      ]
-;    ]
-;  ]
+  ;  set-current-plot-pen "f1"
+  ;  plotxy (year - 1) [earnings] of item 0 farmer-list
+  ;  if(count controllers with [role = "farmer"] > 1)[
+  ;    set-current-plot-pen "f2"
+  ;    plotxy (year - 1) [earnings] of item 1 farmer-list
+  ;    
+  ;    if(count controllers with [role = "farmer"] > 2)[
+  ;      set-current-plot-pen "f3"
+  ;      plotxy (year - 1) [earnings] of item 2 farmer-list
+  ;      
+  ;      if(count controllers with [role = "farmer"] > 3)[
+  ;        set-current-plot-pen "f4"
+  ;        plotxy (year - 1) [earnings] of item 3 farmer-list
+  ;        
+  ;        if(count controllers with [role = "farmer"] > 4)[
+  ;          set-current-plot-pen "f5"
+  ;          plotxy (year - 1) [earnings] of item 4 farmer-list
+  ;          
+  ;          if(count controllers with [role = "farmer"] > 5)[
+  ;            set-current-plot-pen "f6"
+  ;            plotxy (year - 1) [earnings] of item 5 farmer-list
+  ;          ]
+  ;        ]
+  ;      ]
+  ;    ]
+  ;  ]
   ;set-current-plot "Emissions"
   ;plotxy (year - 1) total-emissions
-
+  
   set-current-plot "sustainability"
   if (sustainability-index > 0)[
     plotxy (year - 1) sustainability-index
     
-    ]
+  ]
   
   set-current-plot "sustainability components"
   radar-chart sustainability-components
@@ -1410,56 +1422,66 @@ end
 to recolor-background
   ask controllers with [role = "farmer"] [hubnet-clear-override user-id patches "plabel"]
   if(coloring = "land use")[
-;    ask patches [
-;      ifelse (land-type = 0)[
-;        set pcolor green
-;      ]
-;      [ifelse (land-type = 1)[
-;        if(corn > switchgrass)[
-;          let fiel field-of-patch self
-;          let avg-health sum([last-corn-yield] of fiel) / (count fiel)
-;          ifelse(last-corn-yield > 0 ) [
-;            set pcolor scale-color yellow avg-health (1.2 * corn-tons-per-acre) 3
-;            print avg-health
-;          ]
-;          [
-;           set pcolor yellow 
-;          ]
-;        ]
-;        if(switchgrass > corn)[
-;          ifelse(last-grass-yield > 0) [
-;            let fiel field-of-patch self
-;            let avg-health sum([last-grass-yield] of fiel) / (count fiel)
-;            set pcolor scale-color red avg-health (1.2 * switchgrass-tons-per-acre) 3.5
-;          ]
-;          [
-;           set pcolor red 
-;          ]
-;        ]
-;        if (switchgrass = corn)[
-;          ifelse(switchgrass = 0 and corn = 0)[
-;            set pcolor brown
-;            set fallowed 1
-;          ]
-;          [
-;            ifelse(random-float(1) < .5)[
-;              set pcolor red
-;            ]
-;            [
-;              set pcolor yellow
-;            ]
-;          ]
-;        ]
-;      ]
-;      [set pcolor blue]]
-;    ]
-
+    ;    ask patches [
+    ;      ifelse (land-type = 0)[
+    ;        set pcolor green
+    ;      ]
+    ;      [ifelse (land-type = 1)[
+    ;        if(corn > switchgrass)[
+    ;          let fiel field-of-patch self
+    ;          let avg-health sum([last-corn-yield] of fiel) / (count fiel)
+    ;          ifelse(last-corn-yield > 0 ) [
+    ;            set pcolor scale-color yellow avg-health (1.2 * corn-tons-per-acre) 3
+    ;            print avg-health
+    ;          ]
+    ;          [
+    ;           set pcolor yellow 
+    ;          ]
+    ;        ]
+    ;        if(switchgrass > corn)[
+    ;          ifelse(last-grass-yield > 0) [
+    ;            let fiel field-of-patch self
+    ;            let avg-health sum([last-grass-yield] of fiel) / (count fiel)
+    ;            set pcolor scale-color red avg-health (1.2 * switchgrass-tons-per-acre) 3.5
+    ;          ]
+    ;          [
+    ;           set pcolor red 
+    ;          ]
+    ;        ]
+    ;        if (switchgrass = corn)[
+    ;          ifelse(switchgrass = 0 and corn = 0)[
+    ;            set pcolor brown
+    ;            set fallowed 1
+    ;          ]
+    ;          [
+    ;            ifelse(random-float(1) < .5)[
+    ;              set pcolor red
+    ;            ]
+    ;            [
+    ;              set pcolor yellow
+    ;            ]
+    ;          ]
+    ;        ]
+    ;      ]
+    ;      [set pcolor blue]]
+    ;    ]
+    
     ask patches with [land-type = 0] [
-      set pcolor green
+      ifelse(hide-world)[
+        set my-color green
+      ]
+      [
+        set pcolor green
+      ]
     ]
     foreach n-values length field-list [?] [
       ask item ? field-list [
-        set pcolor item ? field-color-vals
+        ifelse(hide-world)[
+          set my-color item ? field-color-vals
+        ]
+        [
+          set pcolor item ? field-color-vals
+        ]
       ]
     ]
   ]
@@ -1470,17 +1492,57 @@ to recolor-background
     if(min-health = 0 and max-health = 0) [
       set max-health 1
     ]
-    ask patches [
-      set pcolor scale-color brown soil-health min-health max-health
+    ifelse(hide-world)[
+      ask patches [
+        set my-color scale-color brown soil-health min-health max-health
+      ]
     ]
+    [
+      ask patches [
+        set pcolor scale-color brown soil-health min-health max-health
+      ]
+    ]
+    
   ]
   
   if(coloring = "land ownership") [
-   ask farmers [
-    ask land [
-     set pcolor [color] of myself 
+    ask farmers [
+      ask land [
+        set pcolor [color] of myself 
+      ] 
     ] 
-   ] 
+  ]
+  ;if((not hide-world) and clients-know-world-hidden) [
+  ;  ask (controllers with [is-human])[
+  ;    let uid user-id
+  ;    ask agent [
+  ;      ask land [
+  ;        hubnet-clear-override uid self "pcolor"
+  ;      ]
+  ;    ]
+  ;  ]
+  ;  set clients-know-world-hidden false
+  ;]
+  if(hide-world)[
+    ask patches [
+      set pcolor black
+    ]
+    
+    ;if(not clients-know-world-hidden)[
+      ask (controllers with [is-human])[
+        let uid user-id
+        ask agent [
+          let not-my-land nobody
+          let landlist [self] of land
+          set not-my-land patches with [not member? self landlist]
+          hubnet-send-override uid not-my-land "pcolor" [grey]
+          ask land [
+            hubnet-send-override uid self "pcolor" [my-color]
+          ]
+        ]
+      ;]
+      ;set clients-know-world-hidden true
+    ]
   ]
 end
 
@@ -1506,17 +1568,17 @@ to generate-world
   ask farmers [
     fill-with-grid-fields land 
   ]
-;  let maxTime 2
-;  let time 0
-;  while [length field-list < (initial-farmers * fields-per-farmer) and time < maxTime] [
-;    ask farmers [
-;      fill-with-fields land 
-;    ]
-;    set time time + 1
-;  ]
-;  if time >= maxTime [
-;    setup
-;  ]
+  ;  let maxTime 2
+  ;  let time 0
+  ;  while [length field-list < (initial-farmers * fields-per-farmer) and time < maxTime] [
+  ;    ask farmers [
+  ;      fill-with-fields land 
+  ;    ]
+  ;    set time time + 1
+  ;  ]
+  ;  if time >= maxTime [
+  ;    setup
+  ;  ]
 end
 
 to assign-land
@@ -1554,7 +1616,7 @@ to fill-with-grid-fields [area]
     if (area-height land) < minYWidth [set minYWidth (area-height land)]
   ]
   
- ; ask farmers [
+  ; ask farmers [
   let xFields floor(minXWidth / field-size)
   let yFields floor(minyWidth / field-size)
   let totalFields 0
@@ -1580,6 +1642,7 @@ to fill-with-grid-fields [area]
             ask tempfield [
               set land-type 1
               set pcolor col
+              set my-color col
             ]
           ]
         ]
@@ -1643,12 +1706,12 @@ to fill-with-fields [area]
       set field-list []
     ]
     [
-     set arrangementFound true 
+      set arrangementFound true 
     ]
     
   ]
   if(arrangementTimeout >= maxArrange)[
-   print "failed to pack fields" 
+    print "failed to pack fields" 
   ]
 end
 
@@ -1685,8 +1748,8 @@ to update-clients
     hubnet-send user-id "Initial Cost of Grass (Ton)" round (cost-per-acre-switchgrass / switchgrass-tons-per-acre)
     hubnet-send user-id "Offered Corn Contract Amount (Tons)" corn-contract
     hubnet-send user-id "Offered Grass Contract Amount (Tons)" switchgrass-contract
-;    hubnet-send user-id "Range of Possible Corn Prices" corn-range
-;    hubnet-send user-id "Range of Possible Switchgrass Prices" switchgrass-range
+    ;    hubnet-send user-id "Range of Possible Corn Prices" corn-range
+    ;    hubnet-send user-id "Range of Possible Switchgrass Prices" switchgrass-range
     hubnet-send user-id "ready" (member? user-id ready-list)
     hubnet-send user-id "Production" [production] of agent
     hubnet-send user-id "Contract Sales" [contract-sales] of agent
@@ -1703,10 +1766,10 @@ to compute-available-energy
   set available-corn 0
   set available-switchgrass 0
   ask farmers[
-
-     set available-corn (available-corn + count land with [land-type = 1 and corn = 1]) 
-     set available-switchgrass (available-switchgrass + sum [switchgrass] of land with [land-type = 1])
-
+    
+    set available-corn (available-corn + count land with [land-type = 1 and corn = 1]) 
+    set available-switchgrass (available-switchgrass + sum [switchgrass] of land with [land-type = 1])
+    
   ]
   set available-corn-energy (available-corn * corn-energy)
   set available-switchgrass-energy (available-switchgrass * switchgrass-energy)
@@ -1714,7 +1777,7 @@ end
 
 to compute-proj-revenue
   ask en-producers[
-
+    
     let buy-corn ((corn-to-buy / 100) * available-corn)
     let buy-switchgrass ((switchgrass-to-buy / 100) * available-switchgrass)
     if(buy-corn > available-corn) [
@@ -1730,9 +1793,9 @@ end
 
 to reset-info-strings
   ask farmers [
-   set economy-string ""
-   set environment-string ""
-   set ranking-string "" 
+    set economy-string ""
+    set environment-string ""
+    set ranking-string "" 
   ]
 end
 
@@ -1745,7 +1808,7 @@ to market-adjust
   let grassp 0
   compute-demand
   compute-supply
-    
+  
   ifelse (corn-demand = corn-supply)
   [
     
@@ -1762,7 +1825,7 @@ to market-adjust
       ]
       let adj-percent (undersupp * market-elasticity-corn)
       if(price-controls) [
-       ; set adj-percent adj-percent * ((1 - ((corn-futures-price - initial-corn-price) / (max-corn-price - initial-corn-price) / 4)) ^ 2)
+        ; set adj-percent adj-percent * ((1 - ((corn-futures-price - initial-corn-price) / (max-corn-price - initial-corn-price) / 4)) ^ 2)
       ]
       ;print adj-percent
       set corn-futures-price round (corn-futures-price + (adj-percent * corn-futures-price) + random-normal 0 5)
@@ -1795,7 +1858,7 @@ to market-adjust
       ]
       let adj-percent (undersupp * market-elasticity-switchgrass)
       if(price-controls) [
-       ; set adj-percent adj-percent * ((1 - ((switchgrass-futures-price - initial-grass-price) / (max-grass-price - initial-grass-price) / 4)) ^ 2)
+        ; set adj-percent adj-percent * ((1 - ((switchgrass-futures-price - initial-grass-price) / (max-grass-price - initial-grass-price) / 4)) ^ 2)
       ]
       set switchgrass-futures-price round (switchgrass-futures-price + (adj-percent * switchgrass-futures-price))
     ]
@@ -1809,13 +1872,13 @@ to market-adjust
   
   
   if noisy-prices [
-   let grass-noise random-normal 0 (10)
-   let corn-noise random-normal 0 (10) ;corn-futures-price * .05
-   if verbose[
-     show (word "grass noise: " grass-noise "corn noise: " corn-noise)
-   ]
-   set corn-futures-price round (corn-futures-price + corn-noise) 
-   set switchgrass-futures-price round (switchgrass-futures-price + grass-noise)
+    let grass-noise random-normal 0 (10)
+    let corn-noise random-normal 0 (10) ;corn-futures-price * .05
+    if verbose[
+      show (word "grass noise: " grass-noise "corn noise: " corn-noise)
+    ]
+    set corn-futures-price round (corn-futures-price + corn-noise) 
+    set switchgrass-futures-price round (switchgrass-futures-price + grass-noise)
   ]
 end
 
@@ -1823,18 +1886,18 @@ to compute-demand
   let corn-profit ((corn-energy * energy-price) - (corn-futures-price * variable-cost-corn))
   let grass-profit ((switchgrass-energy * energy-price) - (switchgrass-futures-price * variable-cost-switchgrass ))
   let profit-ratio grass-profit / corn-profit
-;  if profit-ratio < 1 [
-;    set profit-ratio corn-profit / grass-profit
-;  ]
+  ;  if profit-ratio < 1 [
+  ;    set profit-ratio corn-profit / grass-profit
+  ;  ]
   if verbose [
-     show (word "Corn profit: " corn-profit)
+    show (word "Corn profit: " corn-profit)
     show (word "Grass profit: " grass-profit)
   ]
   ifelse grass-profit <= 0 
   [
-;    set corn-demand (count patches with [land-type = 1]) * ((count controllers with [user-id != 0]) / count controllers)
+    ;    set corn-demand (count patches with [land-type = 1]) * ((count controllers with [user-id != 0]) / count controllers)
     set corn-demand count patches with [land-type = 1]
-;    set corn-demand count ([land] of farmers)
+    ;    set corn-demand count ([land] of farmers)
     set switchgrass-demand 0
   ]
   [
@@ -1847,19 +1910,19 @@ to compute-demand
       set corn-demand round ((count patches with [land-type = 1] / 2) - ((count patches with [land-type = 1] / 2) * (1 - (1 / (grass-profit / corn-profit))) * 1))
     ][ set corn-demand round (count patches with [land-type = 1] / 2 )]
     ]]
-    
-   
+  
+  
   ifelse corn-profit <= 0 
   [
     set switchgrass-demand count patches with [land-type = 1] * 1.15
-
-;    set switchgrass-demand round (count patches with [land-type = 1] / 2 * grass-profit / corn-profit) 
+    
+    ;    set switchgrass-demand round (count patches with [land-type = 1] / 2 * grass-profit / corn-profit) 
     set corn-demand 0
   ]
   [
     ;set switchgrass-demand round (count patches with [land-type = 1] * ((count controllers with [user-id != 0]) / count controllers) / 2 * grass-profit / corn-profit) 
     ;set switchgrass-demand 1.1 * ((count patches with [land-type = 1]) * (grass-profit / corn-profit))
-     ifelse (corn-profit > grass-profit) [
+    ifelse (corn-profit > grass-profit) [
       set switchgrass-demand round ((count patches with [land-type = 1] / 2) - ((count patches with [land-type = 1] / 2) * ((1 / (corn-profit / grass-profit)) * 1)))
     ][ifelse corn-profit < grass-profit [
       set switchgrass-demand round ((count patches with [land-type = 1] / 2) + ((count patches with [land-type = 1] / 2) * (1 - (1 / (grass-profit / corn-profit)) * 1)))
@@ -1873,7 +1936,7 @@ to compute-demand
   if verbose[
     show word "Corn Demand: " corn-demand
     show word "Grass Demand: " switchgrass-demand
- ]
+  ]
 end
 
 to compute-supply
@@ -1929,26 +1992,26 @@ end
 
 to move-farmers
   ask farmers[
-   if (destination != nobody and destination != 0) [
-     if patch-here != destination [
-       face destination
-       fd 1
-     ]
-     
-     if (patch-here = destination)[
-      if [land-type] of patch-here = 1 [
-        set current-field field-of-patch patch-here
-        if(manage-individual) [
-          let client-id [user-id] of owner-of self
-          if(current-field != nobody) [
-;            hubnet-send client-id "switchgrass to corn ratio" [corn-percent] of one-of current-field
-;            hubnet-send client-id "fields to plant" [100 - fallow-percent] of one-of current-field
+    if (destination != nobody and destination != 0) [
+      if patch-here != destination [
+        face destination
+        fd 1
+      ]
+      
+      if (patch-here = destination)[
+        if [land-type] of patch-here = 1 [
+          set current-field field-of-patch patch-here
+          if(manage-individual) [
+            let client-id [user-id] of owner-of self
+            if(current-field != nobody) [
+              ;            hubnet-send client-id "switchgrass to corn ratio" [corn-percent] of one-of current-field
+              ;            hubnet-send client-id "fields to plant" [100 - fallow-percent] of one-of current-field
+            ]
           ]
         ]
-      ]
-      ;set destination nobody
-     ] 
-   ] 
+        ;set destination nobody
+      ] 
+    ] 
   ]
 end
 
@@ -1959,11 +2022,11 @@ end
 
 to allocate-fields
   ask farmers [set patches-owned nobody]
-
+  
   let curr-item 0
   foreach field-list [
-   ifelse (any? farmers with [patches-owned = nobody]) [ ask one-of farmers with [patches-owned = nobody] [set patches-owned (patch-set patches-owned ?) ] ]
-   [ask (min-one-of farmers [count patches-owned]) [set patches-owned (patch-set patches-owned ?) ] ]
+    ifelse (any? farmers with [patches-owned = nobody]) [ ask one-of farmers with [patches-owned = nobody] [set patches-owned (patch-set patches-owned ?) ] ]
+    [ask (min-one-of farmers [count patches-owned]) [set patches-owned (patch-set patches-owned ?) ] ]
   ]
 end
 
@@ -1997,11 +2060,11 @@ to compute-individual-s-triangle
   ;1 = environmental;
   ;2 = economic
   
-;  if role = "farmer" [
-;    set tri-score-components replace-item 0 tri-score-components (item 2 score-components)
-;    set tri-score-components replace-item 1 tri-score-components ((item 0 score-components + item 1 score-components) / 2)
-;    set tri-score-components replace-item 2 tri-score-components (item 3 score-components)
-;  ]
+  ;  if role = "farmer" [
+  ;    set tri-score-components replace-item 0 tri-score-components (item 2 score-components)
+  ;    set tri-score-components replace-item 1 tri-score-components ((item 0 score-components + item 1 score-components) / 2)
+  ;    set tri-score-components replace-item 2 tri-score-components (item 3 score-components)
+  ;  ]
   if role = "farmer" [
     let profits-per-acre ( [yearly-earnings] of agent / count ([land] of agent) with [land-type = 1])
     if verbose [
@@ -2044,7 +2107,7 @@ to compute-individual-s-triangle
       set tri-score-components replace-item 0 tri-score-components (round social-score)
     ]
     [
-     set tri-score-components replace-item 0 tri-score-components (item 2 score-components) 
+      set tri-score-components replace-item 0 tri-score-components (item 2 score-components) 
     ]
     
   ]
@@ -2112,7 +2175,7 @@ to radar-chart [data]
   let angle-delta 360 / num-vars
   let axis-length max data + 1
   foreach n-values num-vars [?] [
-
+    
     let cartesian-coord polar-to-rectangular (item ? data) (? * angle-delta)
     let axis-polar polar-to-rectangular (axis-length) (? * angle-delta)
     set-current-plot-pen "axes"
@@ -2169,7 +2232,7 @@ to-report crops-individual-en [farma]
 end
 
 to-report crops-individual-val [farma]
- let all-fields ([land] of farma) with [land-type = 1]
+  let all-fields ([land] of farma) with [land-type = 1]
   report (sum [corn] of all-fields * corn-futures-price) + (sum [switchgrass] of all-fields * switchgrass-futures-price)
 end
 
@@ -2199,7 +2262,7 @@ to setup-earnings-plot
   ]
   
   
-
+  
 end
 
 to viewview
@@ -2210,73 +2273,73 @@ to log-player-action [tag action player]
   file-open "logs/log.txt"
   let contro one-of controllers with [user-id = player]
   ifelse (tag = "Mouse Up" or contro = nobody or [agent] of contro = nobody)[
-   ;redundant log or dont need to 
+    ;redundant log or dont need to 
   ]
   [
-
-   let farme [agent] of contro
-   let clickstr "none,none,none"
-   let plantstr "none,none"
-   if(tag = "View")[
-     let pat patch (item 0 action) (item 1 action)
-     set clickstr (word pat "," [corn] of pat "," [switchgrass] of pat)
-   ]
-   if(tag = "Finished Planting") [
-     ;decided to include this always, but leaving conditional as a placeholder in case of bugs
-   ]
-   set plantstr (word (count ([land] of farme) with [corn >= 1] / field-size ^ 2) "," (count ([land] of farme) with [switchgrass >= 1]  / field-size ^ 2))
-   let pathere [patch-here] of farme
-   let locstr (word pathere "," [land-type] of pathere "," [corn] of pathere "," [switchgrass] of pathere "," [soil-health] of pathere)
-   ;time,player,message tag, message,accepted corn contract?,accepted switchgrass contract?,corn-contract amt,grass contract amt, corn price(futures),corn price(spot). grass price(futures), grass price(spot), clicked patch, corn at clicked patch
-   ;switchgrass of clicked patch, corn planted (fields), switchgrass planted (fields),selected info view, earnings, corn grown, corn sold (overall), corn sold (spot), grass grown, grass sold (all), grass sold (spot)
-   ;sustainability score, sustainability rank
-   file-print (word ticks "," player "," tag "," action "," [accepted-corn-contract] of farme "," [accepted-switchgrass-contract] of farme  
+    
+    let farme [agent] of contro
+    let clickstr "none,none,none"
+    let plantstr "none,none"
+    if(tag = "View")[
+      let pat patch (item 0 action) (item 1 action)
+      set clickstr (word pat "," [corn] of pat "," [switchgrass] of pat)
+    ]
+    if(tag = "Finished Planting") [
+      ;decided to include this always, but leaving conditional as a placeholder in case of bugs
+    ]
+    set plantstr (word (count ([land] of farme) with [corn >= 1] / field-size ^ 2) "," (count ([land] of farme) with [switchgrass >= 1]  / field-size ^ 2))
+    let pathere [patch-here] of farme
+    let locstr (word pathere "," [land-type] of pathere "," [corn] of pathere "," [switchgrass] of pathere "," [soil-health] of pathere)
+    ;time,player,message tag, message,accepted corn contract?,accepted switchgrass contract?,corn-contract amt,grass contract amt, corn price(futures),corn price(spot). grass price(futures), grass price(spot), clicked patch, corn at clicked patch
+    ;switchgrass of clicked patch, corn planted (fields), switchgrass planted (fields),selected info view, earnings, corn grown, corn sold (overall), corn sold (spot), grass grown, grass sold (all), grass sold (spot)
+    ;sustainability score, sustainability rank
+    file-print (word ticks "," player "," tag "," action "," [accepted-corn-contract] of farme "," [accepted-switchgrass-contract] of farme  
       "," corn-contract "," switchgrass-contract "," corn-futures-price "," corn-spot-price "," switchgrass-futures-price "," switchgrass-spot-price "," clickstr "," plantstr ","[info-view] of contro ","[earnings] of farme ","
-       [corn-grown] of farme "," [corn-sold] of farme "," [corn-sold-spot] of farme "," [switchgrass-grown] of farme "," [switchgrass-sold] of farme "," [switchgrass-sold-spot] of farme "," 
-       [score] of contro "," [rank] of contro "," locstr) 
+      [corn-grown] of farme "," [corn-sold] of farme "," [corn-sold-spot] of farme "," [switchgrass-grown] of farme "," [switchgrass-sold] of farme "," [switchgrass-sold-spot] of farme "," 
+      [score] of contro "," [rank] of contro "," locstr) 
   ]
-;  ifelse (tag = "Finished Choosing Contracts") [
-;    let farme [agent] of one-of controllers with [user-id = player]
-;    file-print (word ticks ": " player " - " tag "(corn: " [accepted-corn-contract] of farme ", switchgrass: " [accepted-switchgrass-contract] of farme  
-;      " offered: " corn-contract " corn " switchgrass-contract " switchgrass , price: " corn-futures-price " corn " switchgrass-futures-price " switchgrass "  ")")
-;  ]
-;  [
-;    ifelse (tag = "View") [
-;      let pat patch (item 0 action) (item 1 action)
-;      file-print (word ticks ": " player " - " tag "(" pat ", corn: " [corn] of pat ", grass: " [switchgrass] of pat ")")
-;    ]
-;    [
-;      ifelse (tag = "Finished Planting") [
-;        let farme [agent] of one-of controllers with [user-id = player]
-;        file-print (word ticks ": " player " - " tag "( Planted corn: " (count ([land] of farme) with [corn >= 1] / field-size ^ 2)
-;          " switchgrass: " (count ([land] of farme) with [switchgrass >= 1]  / field-size ^ 2)
-;          " Contracts corn: " [accepted-corn-contract] of farme ", switchgrass: " [accepted-switchgrass-contract] of farme  
-;      " offered: " corn-contract " corn " switchgrass-contract " switchgrass )")
-;      ]
-;      [
-;        ifelse (tag = "Mouse Up") [
-;          ;already logged with View
-;        ]
-;        [
-;          file-print (word ticks ": " player " - " tag "(" action")")
-;        ]
-;      ]
-;    ]
-;  ]
+  ;  ifelse (tag = "Finished Choosing Contracts") [
+  ;    let farme [agent] of one-of controllers with [user-id = player]
+  ;    file-print (word ticks ": " player " - " tag "(corn: " [accepted-corn-contract] of farme ", switchgrass: " [accepted-switchgrass-contract] of farme  
+  ;      " offered: " corn-contract " corn " switchgrass-contract " switchgrass , price: " corn-futures-price " corn " switchgrass-futures-price " switchgrass "  ")")
+  ;  ]
+  ;  [
+  ;    ifelse (tag = "View") [
+  ;      let pat patch (item 0 action) (item 1 action)
+  ;      file-print (word ticks ": " player " - " tag "(" pat ", corn: " [corn] of pat ", grass: " [switchgrass] of pat ")")
+  ;    ]
+  ;    [
+  ;      ifelse (tag = "Finished Planting") [
+  ;        let farme [agent] of one-of controllers with [user-id = player]
+  ;        file-print (word ticks ": " player " - " tag "( Planted corn: " (count ([land] of farme) with [corn >= 1] / field-size ^ 2)
+  ;          " switchgrass: " (count ([land] of farme) with [switchgrass >= 1]  / field-size ^ 2)
+  ;          " Contracts corn: " [accepted-corn-contract] of farme ", switchgrass: " [accepted-switchgrass-contract] of farme  
+  ;      " offered: " corn-contract " corn " switchgrass-contract " switchgrass )")
+  ;      ]
+  ;      [
+  ;        ifelse (tag = "Mouse Up") [
+  ;          ;already logged with View
+  ;        ]
+  ;        [
+  ;          file-print (word ticks ": " player " - " tag "(" action")")
+  ;        ]
+  ;      ]
+  ;    ]
+  ;  ]
   
   file-close
 end
 
 to-report crops-en-amt
- report (total-corn-grown * corn-energy) + (total-switchgrass-grown * switchgrass-energy)
+  report (total-corn-grown * corn-energy) + (total-switchgrass-grown * switchgrass-energy)
 end
 
 to-report crops-econ-val
- report (total-corn-grown * corn-futures-price) + (total-switchgrass-grown * switchgrass-futures-price)
+  report (total-corn-grown * corn-futures-price) + (total-switchgrass-grown * switchgrass-futures-price)
 end
 
 to-report patches-in-range-old [pstart pend]
- report patches with [((pxcor > ([pxcor] of pstart)) and (pycor > ([pycor] of pstart)) and (pxcor < ([pxcor] of pend)) and (pycor < ([pycor] of pend)))]
+  report patches with [((pxcor > ([pxcor] of pstart)) and (pycor > ([pycor] of pstart)) and (pxcor < ([pxcor] of pend)) and (pycor < ([pycor] of pend)))]
 end  
 
 to-report patches-in-range [pstart pend]
@@ -2311,9 +2374,9 @@ end
 
 to-report field-of-patch [p]
   foreach field-list [
-   if member? p ? [
-     report ?
-   ] 
+    if member? p ? [
+      report ?
+    ] 
   ]
   report nobody
 end
@@ -2323,8 +2386,8 @@ to-report owner-of [ag]
 end
 
 to-report all-farmers-ready
-;  report (length ready-list >= count controllers with [role = "farmer"]) 
-    report (length ready-list >= expected-readies) 
+  ;  report (length ready-list >= count controllers with [role = "farmer"]) 
+  report (length ready-list >= expected-readies) 
 end
 
 to-report farmers-turn
@@ -2385,13 +2448,13 @@ end
 
 to-report switchgrass-color-for [yield]
   ifelse (yield > switchgrass-tons-per-acre * 2) [report red - 1][
- ifelse (yield > switchgrass-tons-per-acre * 1.7) [report red - .75] [
-  ifelse (yield > switchgrass-tons-per-acre * 1.4) [report red - .5] [
-    ifelse (yield > switchgrass-tons-per-acre * 1.1) [report red - .25][
-      ifelse (yield > switchgrass-tons-per-acre - 1) [report red] [
-        ifelse (yield > switchgrass-tons-per-acre - 2) [report red + 1] [
-          report red + 1.5
-        ]]]]]]
+    ifelse (yield > switchgrass-tons-per-acre * 1.7) [report red - .75] [
+      ifelse (yield > switchgrass-tons-per-acre * 1.4) [report red - .5] [
+        ifelse (yield > switchgrass-tons-per-acre * 1.1) [report red - .25][
+          ifelse (yield > switchgrass-tons-per-acre - 1) [report red] [
+            ifelse (yield > switchgrass-tons-per-acre - 2) [report red + 1] [
+              report red + 1.5
+            ]]]]]]
   
 end
 
@@ -2438,7 +2501,7 @@ to-report Sustainability-info-string [controlla]
 end
 
 to-report Ranking-info-string [controlla]
-
+  
   report (word
     "Economic rank (Earnings): " [earnings-rank] of controlla
     "\nEnvironmental rank: " [environment-rank] of controlla
@@ -2456,7 +2519,7 @@ to-report max-emissions[farme]
 end
 
 to-report patches-in-range-inclusive [pstart pend]
-   report patches with [((pxcor >= ([pxcor] of pstart)) and (pycor <= ([pycor] of pstart)) and (pxcor <= ([pxcor] of pend)) and (pycor >= ([pycor] of pend)))]
+  report patches with [((pxcor >= ([pxcor] of pstart)) and (pycor <= ([pycor] of pstart)) and (pxcor <= ([pxcor] of pend)) and (pycor >= ([pycor] of pend)))]
 end
 
 to-report area-width [area]
@@ -2475,10 +2538,10 @@ to-report get-item-xy [agentset x y width height shift]
   let repPat nobody
   ask patch minX maxY [ set repPat patch-at x (-1 * y)]
   report repPat
-
-;  let retItem floor(y / height) * width + (x mod width)
-;  
-;  report item retItem agentList
+  
+  ;  let retItem floor(y / height) * width + (x mod width)
+  ;  
+  ;  report item retItem agentList
 end
 
 to-report not-ready-list
@@ -3358,6 +3421,17 @@ NIL
 NIL
 NIL
 1
+
+SWITCH
+360
+646
+473
+679
+hide-world
+hide-world
+0
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
