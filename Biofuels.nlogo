@@ -133,7 +133,7 @@ to setup
   set corn-futures-price initial-corn-price
   set market-elasticity-switchgrass .15
   set market-elasticity-corn .1
-  set variable-cost-switchgrass 4
+  set variable-cost-switchgrass 10
   set variable-cost-corn 1
   set energy-price 4.3 ;rough 1/10 the price per gJ/ethanol
   set switchgrass-futures-price initial-grass-price
@@ -279,6 +279,14 @@ to go
       offer-contracts
       ask controllers with [is-human = false] [
         ai-decide-contracts
+      ]
+      ask (controllers with [is-human])[
+          hubnet-send user-id "Accept Corn Contract" false
+          hubnet-send user-id "Accept Switchgrass Contract" false
+          ask agent[
+            set accepted-corn-contract false
+            set accepted-switchgrass-contract false
+          ]
       ]
       ai-reset-fields-to-plant
       set next-event "Farmers Accept/Decline Contracts"
@@ -2855,7 +2863,7 @@ CHOOSER
 coloring
 coloring
 "land use" "soil health" "land ownership"
-1
+0
 
 PLOT
 489
